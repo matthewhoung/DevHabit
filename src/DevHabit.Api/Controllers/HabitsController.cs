@@ -1,11 +1,13 @@
 ﻿using DevHabit.Api.Database;
 using DevHabit.Api.DTOs.Habits;
 using DevHabit.Api.Entities;
+using DevHabit.Api.Services.Sorting;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Dynamic.Core;
 
 namespace DevHabit.Api.Controllers;
 
@@ -14,10 +16,32 @@ namespace DevHabit.Api.Controllers;
 public sealed class HabitsController(ApplicationDbContext dbContext) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<HabitsCollectionDto>> GetHabits()
+    public async Task<ActionResult<HabitsCollectionDto>> GetHabits(
+        [FromQuery] HabitsQueryParameters query,
+        SortMappingProvider sortMappingProvider)
     {
+        if (!sortMappingProvider.ValidateMappings<HabitDto, Habit>(query.Sort))
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                detail: $"The provided sort parameter isn't valid: '{query.Sort}'.");
+        }
+
+        query.Search ??= query.Search?.Trim().ToLower();
+
+        SortMapping[] sortMappings = sortMappingProvider.GetMappings<HabitDto, Habit>(); 
+
         List<HabitDto> habits = await dbContext
             .Habits
+            // Searching section
+            .Where(h => query.Search == null ||
+                        h.Name.ToLower().Contains(query.Search) ||
+                        h.Description != null && h.Description.ToLower().Contains(query.Search))
+            // Filtering section
+            .Where(h => query.Type == null || h.Type == query.Type)
+            .Where(h => query.Status == null || h.Status == query.Status)
+            // Sorting section
+            .ApplySort(query.Sort, sortMappings)
             .Select(HabitQueries.ProjectToDto())
             .ToListAsync();
 
@@ -82,7 +106,9 @@ public sealed class HabitsController(ApplicationDbContext dbContext) : Controlle
     }
 
     [HttpPatch("{id}")]
-    public async Task<ActionResult> PatchHabit(string id, JsonPatchDocument<HabitDto> patchDocument)
+    public async Task<ActionResult> PatchHabit(
+        string id, 
+        JsonPatchDocument<HabitDto> patchDocument)
     {
         Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id);
 
