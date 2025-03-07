@@ -1,4 +1,5 @@
 using DevHabit.Api.Database;
+using DevHabit.Api.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
@@ -49,6 +50,8 @@ WebApplication app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    await app.ApplyMigrationsAsync();
 }
 
 app.UseHttpsRedirection();
