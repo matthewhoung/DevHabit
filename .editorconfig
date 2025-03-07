@@ -378,7 +378,7 @@ dotnet_diagnostic.CS9107.severity = none
 dotnet_diagnostic.IDE0005.severity = none
 
 # IDE0008: Use explicit type
-dotnet_diagnostic.IDE0008.severity = none
+dotnet_diagnostic.IDE0008.severity = error
 
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = none
