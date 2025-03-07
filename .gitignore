@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .containers
+/src/DevHabit.Api/Database/Migrations
