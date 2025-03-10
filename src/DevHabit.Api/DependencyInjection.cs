@@ -13,6 +13,8 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 
 namespace DevHabit.Api;
 
@@ -29,6 +31,15 @@ public static class DependencyInjection
             options.SerializerSettings.ContractResolver =
                 new CamelCasePropertyNamesContractResolver())
         .AddXmlSerializerFormatters();
+
+        builder.Services.Configure<MvcOptions>(options =>
+        {
+            NewtonsoftJsonOutputFormatter formatter = options.OutputFormatters
+            .OfType<NewtonsoftJsonOutputFormatter>()
+            .First();
+
+            formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.HateoasJson);
+        });
 
         builder.Services.AddOpenApi();
 
@@ -94,11 +105,15 @@ public static class DependencyInjection
         // if validators are internal, need to add includeInternalTypes: true
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-        // Services
+        // Mapping services
         builder.Services.AddTransient<SortMappingProvider>();
         builder.Services.AddSingleton<ISortMappingDefinition, SortMappingDefinition<HabitDto, Habit>>(_ =>
             HabitMappings.SortMapping);
+        // Data shaping
         builder.Services.AddTransient<DataShapingService>();
+        // Link services
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddTransient<LinkService>();
 
         return builder;
     }
