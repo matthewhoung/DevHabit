@@ -2,12 +2,14 @@
 using DevHabit.Api.DTOs.Common;
 using DevHabit.Api.DTOs.Habits;
 using DevHabit.Api.Entities;
+using DevHabit.Api.Services;
 using DevHabit.Api.Services.Sorting;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Dynamic;
 using System.Linq.Dynamic.Core;
 
 namespace DevHabit.Api.Controllers;
@@ -17,15 +19,24 @@ namespace DevHabit.Api.Controllers;
 public sealed class HabitsController(ApplicationDbContext dbContext) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<PaginationResult<HabitDto>>> GetHabits(
+    public async Task<IActionResult> GetHabits(
         [FromQuery] HabitsQueryParameters query,
-        SortMappingProvider sortMappingProvider)
+        SortMappingProvider sortMappingProvider,
+        DataShapingService dataShapingService)
     {
+        // validate the sort parameter
         if (!sortMappingProvider.ValidateMappings<HabitDto, Habit>(query.Sort))
         {
             return Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 detail: $"The provided sort parameter isn't valid: '{query.Sort}'.");
+        }
+        // validate the fields parameter
+        if (!dataShapingService.Validate<HabitDto>(query.Fields))
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                detail: $"The provided fields parameter isn't valid: '{query.Fields}'.");
         }
 
         query.Search ??= query.Search?.Trim().ToLower();
@@ -44,10 +55,23 @@ public sealed class HabitsController(ApplicationDbContext dbContext) : Controlle
             .ApplySort(query.Sort, sortMappings)
             .Select(HabitQueries.ProjectToDto());
 
-        PaginationResult<HabitDto> paginationResult = await PaginationResult<HabitDto>.CreateAsync(
-            habitsQuery, 
-            query.Page, 
-            query.PageSize);
+        int totalCount = await habitsQuery.CountAsync();
+
+        List<HabitDto> habits = await habitsQuery
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync();
+
+        var paginationResult = new PaginationResult<ExpandoObject>
+        {
+            Items = dataShapingService.ShapeDate(
+                habits, 
+                query.Fields),
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalCount = totalCount
+        };
+            
 
         return Ok(paginationResult);
     }
