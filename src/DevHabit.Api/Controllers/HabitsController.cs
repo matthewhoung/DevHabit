@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Dynamic;
 using System.Linq.Dynamic.Core;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace DevHabit.Api.Controllers;
 
@@ -64,7 +65,7 @@ public sealed class HabitsController(ApplicationDbContext dbContext) : Controlle
 
         var paginationResult = new PaginationResult<ExpandoObject>
         {
-            Items = dataShapingService.ShapeDate(
+            Items = dataShapingService.ShapeCollectionData(
                 habits, 
                 query.Fields),
             Page = query.Page,
@@ -77,8 +78,19 @@ public sealed class HabitsController(ApplicationDbContext dbContext) : Controlle
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<HabitDto>> GetHabit(string id)
+    public async Task<IActionResult> GetHabit(
+        string id,
+        string? fields,
+        DataShapingService dataShapingService)
     {
+        // validate the fields parameter
+        if (!dataShapingService.Validate<HabitWithTagsDto>(fields))
+        {
+            return Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+                detail: $"The provided fields parameter isn't valid: '{fields}'.");
+        }
+
         HabitDto? habit = await dbContext
             .Habits
             .Where(h => h.Id == id)
@@ -90,7 +102,9 @@ public sealed class HabitsController(ApplicationDbContext dbContext) : Controlle
             return NotFound();
         }
 
-        return Ok(habit);
+        ExpandoObject shapedHabitDto = dataShapingService.ShapeData(habit, fields);
+
+        return Ok(shapedHabitDto);
     }
 
     [HttpPost]

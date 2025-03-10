@@ -1,3 +1,4 @@
+using DevHabit.Api;
 using DevHabit.Api.Database;
 using DevHabit.Api.DTOs.Habits;
 using DevHabit.Api.Entities;
@@ -17,63 +18,12 @@ using OpenTelemetry.Trace;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers(options =>
-{
-    options.ReturnHttpNotAcceptable = true;
-})
-.AddNewtonsoftJson(options =>
-    options.SerializerSettings.ContractResolver =
-        new CamelCasePropertyNamesContractResolver())
-.AddXmlSerializerFormatters();
-
-// if validators are internal, need to add includeInternalTypes: true
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
-
-builder.Services.AddProblemDetails(options =>
-{
-    options.CustomizeProblemDetails = context =>
-    {
-        context.ProblemDetails.Extensions.TryAdd(
-            "requestId", 
-            context.HttpContext.TraceIdentifier);
-    };
-});
-// remember to add the fluent validator before the global exception handler
-builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-
-builder.Services.AddOpenApi();
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options
-        .UseNpgsql(
-            builder.Configuration.GetConnectionString("Postgres"),
-            npgsqlOptions => npgsqlOptions
-                .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Application))
-        .UseSnakeCaseNamingConvention());
-
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService(builder.Environment.ApplicationName))
-    .WithTracing(tracing => tracing
-        .AddHttpClientInstrumentation()
-        .AddAspNetCoreInstrumentation()
-        .AddNpgsql())
-    .WithMetrics(metrics => metrics
-        .AddHttpClientInstrumentation()
-        .AddAspNetCoreInstrumentation()
-        .AddRuntimeInstrumentation())
-    .UseOtlpExporter();
-
-builder.Logging.AddOpenTelemetry(options =>
-{
-    options.IncludeScopes = true;
-    options.IncludeFormattedMessage = true;
-});
-// Services
-builder.Services.AddTransient<SortMappingProvider>();
-builder.Services.AddSingleton<ISortMappingDefinition, SortMappingDefinition<HabitDto, Habit>>(_ =>
-    HabitMappings.SortMapping);
-builder.Services.AddTransient<DataShapingService>();
+builder
+    .AddControllers()
+    .AddErrorHandling()
+    .AddDatabase()
+    .AddObservability()
+    .AddApplicationServices();
 
 WebApplication app = builder.Build();
 
