@@ -31,9 +31,9 @@ internal static class QueryableExtensions
             string direction = (isDescending, mapping.Reverse) switch
             {
                 (false, false) => "ASC",
-                (true, true) => "ASC",
                 (false, true) => "DESC",
-                (true, false) => "DESC"
+                (true, false) => "DESC",
+                (true, true) => "ASC"
             };
 
             orderByParts.Add($"{mapping.PropertyName} {direction}");

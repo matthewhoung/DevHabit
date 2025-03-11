@@ -11,8 +11,8 @@ public sealed record PaginationResult<T> : ICollectionResponse<T>, ILinksRespons
     public List<LinkDto> Links { get; set; }
 
     public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
-    public bool HasPrevious => Page > 1;
-    public bool HasNext => Page < TotalPages;
+    public bool HasPreviousPage => Page > 1;
+    public bool HasNextPage => Page < TotalPages;
 
     public static async Task<PaginationResult<T>> CreateAsync(
         IQueryable<T> query,
@@ -24,6 +24,7 @@ public sealed record PaginationResult<T> : ICollectionResponse<T>, ILinksRespons
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
         return new PaginationResult<T>
         {
             Items = items,
