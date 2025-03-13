@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DevHabit.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = Roles.Member)]
 [ApiController]
 [Route("habits/{habitId}/tags")]
 public sealed class HabitTagsController(ApplicationDbContext dbContext) : ControllerBase
@@ -40,7 +40,9 @@ public sealed class HabitTagsController(ApplicationDbContext dbContext) : Contro
 
         if (existingTagIds.Count != upsertHabitTagsDto.TagIds.Count)
         {
-            return BadRequest("One or more tag IDs is invalid");
+            return Problem(
+                detail: "One or more tag IDs is invalid",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         habit.HabitTags.RemoveAll(ht => !upsertHabitTagsDto.TagIds.Contains(ht.TagId));

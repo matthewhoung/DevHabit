@@ -20,7 +20,7 @@ public sealed class UserContext(
         {
             return null;
         }
-        // Will apply Redis cache later
+
         string cacheKey = $"{CacheKeyPrefix}{identityId}";
 
         string? userId = await memoryCache.GetOrCreateAsync(cacheKey, async entry =>

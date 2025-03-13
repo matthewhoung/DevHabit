@@ -55,14 +55,15 @@ public sealed class AuthController(
                 extensions: extensions);
         }
 
-        IdentityResult addToResult = await userManager.AddToRoleAsync(identityUser, Roles.Member);
-        if (!addToResult.Succeeded)
+        IdentityResult addToRoleResult = await userManager.AddToRoleAsync(identityUser, Roles.Member);
+
+        if (!addToRoleResult.Succeeded)
         {
             var extensions = new Dictionary<string, object?>
             {
                 {
                     "errors",
-                    addToResult.Errors.ToDictionary(e => e.Code, e => e.Description)
+                    addToRoleResult.Errors.ToDictionary(e => e.Code, e => e.Description)
                 }
             };
             return Problem(
@@ -133,16 +134,21 @@ public sealed class AuthController(
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == refreshTokenDto.RefreshToken);
 
-        if (refreshToken is null || refreshToken.ExpiresAtUtc < DateTime.UtcNow)
+        if (refreshToken is null)
         {
             return Unauthorized();
         }
-        // Get user roles
+
+        if (refreshToken.ExpiresAtUtc < DateTime.UtcNow)
+        {
+            return Unauthorized();
+        }
+
         IList<string> roles = await userManager.GetRolesAsync(refreshToken.User);
-        // Generate new access and refresh tokens
+
         var tokenRequest = new TokenRequest(refreshToken.User.Id, refreshToken.User.Email!, roles);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
-        // Update the refresh token with basic rotation
+
         refreshToken.Token = accessTokens.RefreshToken;
         refreshToken.ExpiresAtUtc = DateTime.UtcNow.AddDays(_jwtAuthOptions.RefreshTokenExpirationDays);
 

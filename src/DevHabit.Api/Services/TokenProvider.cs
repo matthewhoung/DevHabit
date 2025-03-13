@@ -27,7 +27,6 @@ public sealed class TokenProvider(IOptions<JwtAuthOptions> options)
         [
             new(JwtRegisteredClaimNames.Sub, tokenRequest.UserId),
             new(JwtRegisteredClaimNames.Email, tokenRequest.Email),
-            // role claims added via spread operator
             ..tokenRequest.Roles.Select(role => new Claim(ClaimTypes.Role, role))
         ];
 

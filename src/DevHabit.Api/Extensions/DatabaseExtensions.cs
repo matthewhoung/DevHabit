@@ -10,9 +10,8 @@ public static class DatabaseExtensions
     public static async Task ApplyMigrationsAsync(this WebApplication app)
     {
         using IServiceScope scope = app.Services.CreateScope();
-        await using ApplicationDbContext applicationDbContext = 
+        await using ApplicationDbContext applicationDbContext =
             scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
         await using ApplicationIdentityDbContext identityDbContext =
             scope.ServiceProvider.GetRequiredService<ApplicationIdentityDbContext>();
 
@@ -20,6 +19,7 @@ public static class DatabaseExtensions
         {
             await applicationDbContext.Database.MigrateAsync();
             app.Logger.LogInformation("Application database migrations applied successfully.");
+
             await identityDbContext.Database.MigrateAsync();
             app.Logger.LogInformation("Identity database migrations applied successfully.");
         }
@@ -42,17 +42,16 @@ public static class DatabaseExtensions
             {
                 await roleManager.CreateAsync(new IdentityRole(Roles.Member));
             }
-
             if (!await roleManager.RoleExistsAsync(Roles.Admin))
             {
                 await roleManager.CreateAsync(new IdentityRole(Roles.Admin));
             }
 
-            app.Logger.LogInformation("Initial roles seeded successfully.");
+            app.Logger.LogInformation("Successfully created roles.");
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            app.Logger.LogError(ex, "An error occurred while seeding data.");
+            app.Logger.LogError(ex, "An error occurred while seeding initial data.");
             throw;
         }
     }

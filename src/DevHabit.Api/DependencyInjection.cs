@@ -1,43 +1,44 @@
-﻿using DevHabit.Api.Database;
+﻿using System.Net.Http.Headers;
+using System.Text;
+using Asp.Versioning;
+using DevHabit.Api.Database;
+using DevHabit.Api.DTOs.Entries;
 using DevHabit.Api.DTOs.Habits;
 using DevHabit.Api.Entities;
+using DevHabit.Api.Jobs;
 using DevHabit.Api.Middleware;
-using DevHabit.Api.Services.Sorting;
 using DevHabit.Api.Services;
+using DevHabit.Api.Services.Sorting;
+using DevHabit.Api.Settings;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Serialization;
 using Npgsql;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Asp.Versioning;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using DevHabit.Api.Settings;
-using System.Text;
-using System.Net.Http.Headers;
+using Quartz;
 
 namespace DevHabit.Api;
 
 public static class DependencyInjection
 {
-    public static WebApplicationBuilder AddApiServices(
-        this WebApplicationBuilder builder)
+    public static WebApplicationBuilder AddApiServices(this WebApplicationBuilder builder)
     {
         builder.Services.AddControllers(options =>
-        {
-            options.ReturnHttpNotAcceptable = true;
-        })
-        .AddNewtonsoftJson(options =>
-            options.SerializerSettings.ContractResolver =
+            {
+                options.ReturnHttpNotAcceptable = true;
+            })
+            .AddNewtonsoftJson(options => options.SerializerSettings.ContractResolver =
                 new CamelCasePropertyNamesContractResolver())
-        .AddXmlSerializerFormatters();
+            .AddXmlSerializerFormatters();
 
         builder.Services.Configure<MvcOptions>(options =>
         {
@@ -79,12 +80,9 @@ public static class DependencyInjection
         {
             options.CustomizeProblemDetails = context =>
             {
-                context.ProblemDetails.Extensions.TryAdd(
-                    "requestId",
-                    context.HttpContext.TraceIdentifier);
+                context.ProblemDetails.Extensions.TryAdd("requestId", context.HttpContext.TraceIdentifier);
             };
         });
-        // remember to add the fluent validator before the global exception handler
         builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
@@ -137,25 +135,24 @@ public static class DependencyInjection
 
     public static WebApplicationBuilder AddApplicationServices(this WebApplicationBuilder builder)
     {
-        // if validators are internal, need to add includeInternalTypes: true
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-        // Mapping services
         builder.Services.AddTransient<SortMappingProvider>();
         builder.Services.AddSingleton<ISortMappingDefinition, SortMappingDefinition<HabitDto, Habit>>(_ =>
             HabitMappings.SortMapping);
-        // Data shaping
+        builder.Services.AddSingleton<ISortMappingDefinition, SortMappingDefinition<EntryDto, Entry>>(_ =>
+            EntryMappings.SortMapping);
+
         builder.Services.AddTransient<DataShapingService>();
-        // Link services
+
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddTransient<LinkService>();
-        // Token provider
+
         builder.Services.AddTransient<TokenProvider>();
-        // User Context
+
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<UserContext>();
 
-        // GitHub access token service
         builder.Services.AddScoped<GitHubAccessTokenService>();
         builder.Services.AddTransient<GitHubService>();
         builder.Services
@@ -171,9 +168,12 @@ public static class DependencyInjection
                     .Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             });
 
-        // Encryption service
-        builder.Services.Configure<EncryptionOptions>(builder.Configuration.GetSection("Encryption"));
+        builder.Services.Configure<EncryptionOptions>(
+            builder.Configuration.GetSection(EncryptionOptions.SectionName));
         builder.Services.AddTransient<EncryptionService>();
+
+        builder.Services.Configure<GitHubAutomationOptions>(
+            builder.Configuration.GetSection(GitHubAutomationOptions.SectionName));
 
         return builder;
     }
@@ -184,9 +184,10 @@ public static class DependencyInjection
             .AddIdentity<IdentityUser, IdentityRole>()
             .AddEntityFrameworkStores<ApplicationIdentityDbContext>();
 
-        builder.Services.Configure<JwtAuthOptions>(builder.Configuration.GetSection("Jwt"));
-        JwtAuthOptions? jwtAuthOptions = builder.Configuration.GetSection("Jwt").Get<JwtAuthOptions>() ??
-            throw new InvalidOperationException("Jwt configuration is missing");
+        builder.Services.Configure<JwtAuthOptions>(builder.Configuration.GetSection(JwtAuthOptions.SectionName));
+        JwtAuthOptions jwtAuthOptions = builder.Configuration
+            .GetSection(JwtAuthOptions.SectionName)
+            .Get<JwtAuthOptions>()!;
 
         builder.Services
             .AddAuthentication(options =>
@@ -205,6 +206,50 @@ public static class DependencyInjection
             });
 
         builder.Services.AddAuthorization();
+
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddBackgroundJobs(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddQuartz(q =>
+        {
+            q.AddJob<GitHubAutomationSchedulerJob>(opts => opts.WithIdentity("github-automation-scheduler"));
+
+            q.AddTrigger(opts => opts
+                .ForJob("github-automation-scheduler")
+                .WithIdentity("github-automation-scheduler-trigger")
+                .WithSimpleSchedule(s =>
+                {
+                    GitHubAutomationOptions settings = builder.Configuration
+                        .GetSection(GitHubAutomationOptions.SectionName)
+                        .Get<GitHubAutomationOptions>()!;
+
+                    s.WithIntervalInMinutes(settings.ScanIntervalMinutes)
+                        .RepeatForever();
+                }));
+        });
+
+
+        builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddCorsPolicy(this WebApplicationBuilder builder)
+    {
+        CorsOptions corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>()!;
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy(CorsOptions.PolicyName, policy =>
+            {
+                policy
+                    .WithOrigins(corsOptions.AllowedOrigins)
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
+            });
+        });
 
         return builder;
     }

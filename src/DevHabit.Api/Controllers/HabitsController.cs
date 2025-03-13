@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DevHabit.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = Roles.Member)]
 [ApiController]
 [Route("habits")]
 [ApiVersion(1.0)]
@@ -135,9 +135,8 @@ public sealed class HabitsController(
 
         if (query.IncludeLinks)
         {
-            List<LinkDto> links = CreateLinksForHabit(id, query.Fields);
-
-            shapedHabitDto.TryAdd("links", links);
+            ((IDictionary<string, object?>)shapedHabitDto)[nameof(ILinksResponse.Links)] =
+                CreateLinksForHabit(id, query.Fields);
         }
 
         return Ok(shapedHabitDto);
@@ -178,9 +177,8 @@ public sealed class HabitsController(
 
         if (query.IncludeLinks)
         {
-            List<LinkDto> links = CreateLinksForHabit(id, query.Fields);
-
-            shapedHabitDto.TryAdd("links", links);
+            ((IDictionary<string, object?>)shapedHabitDto)[nameof(ILinksResponse.Links)] =
+                CreateLinksForHabit(id, query.Fields);
         }
 
         return Ok(shapedHabitDto);
@@ -201,6 +199,14 @@ public sealed class HabitsController(
         await validator.ValidateAndThrowAsync(createHabitDto);
 
         Habit habit = createHabitDto.ToEntity(userId);
+
+        if (habit.AutomationSource is not null &&
+            await dbContext.Habits.AnyAsync(h => h.UserId == userId && h.AutomationSource == habit.AutomationSource))
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                detail: $"Only one habit with this automation source is allowed: '{habit.AutomationSource}'");
+        }
 
         dbContext.Habits.Add(habit);
 
@@ -230,6 +236,16 @@ public sealed class HabitsController(
         if (habit is null)
         {
             return NotFound();
+        }
+
+        if (habit.AutomationSource is null &&
+            updateHabitDto.AutomationSource is not null &&
+            await dbContext.Habits.AnyAsync(
+                h => h.UserId == userId && h.AutomationSource == updateHabitDto.AutomationSource))
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                detail: $"Only one habit with this automation source is allowed: '{habit.AutomationSource}'");
         }
 
         habit.UpdateFromDto(updateHabitDto);

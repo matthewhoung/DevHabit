@@ -29,6 +29,11 @@ public sealed class CreateHabitDtoValidator : AbstractValidator<CreateHabitDto>
             .IsInEnum()
             .WithMessage("Invalid habit type");
 
+        RuleFor(x => x.AutomationSource)
+            .IsInEnum()
+            .When(x => x.AutomationSource is not null)
+            .WithMessage("Invalid automation source");
+
         // Frequency validation
         RuleFor(x => x.Frequency.Type)
             .IsInEnum()

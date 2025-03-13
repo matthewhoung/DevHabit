@@ -37,6 +37,7 @@ internal static class HabitMappings
         return new HabitDto
         {
             Id = habit.Id,
+            UserId = habit.UserId,
             Name = habit.Name,
             Description = habit.Description,
             Type = habit.Type,
@@ -60,6 +61,7 @@ internal static class HabitMappings
                     Target = habit.Milestone.Target,
                     Current = habit.Milestone.Current
                 },
+            AutomationSource = habit.AutomationSource,
             CreatedAtUtc = habit.CreatedAtUtc,
             UpdatedAtUtc = habit.UpdatedAtUtc,
             LastCompletedAtUtc = habit.LastCompletedAtUtc
@@ -95,6 +97,7 @@ internal static class HabitMappings
                     Current = 0 // Initialize current progress to 0
                 }
                 : null,
+            AutomationSource = dto.AutomationSource,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -108,6 +111,7 @@ internal static class HabitMappings
         habit.Description = dto.Description;
         habit.Type = dto.Type;
         habit.EndDate = dto.EndDate;
+        habit.AutomationSource = dto.AutomationSource;
 
         // Update frequency (assuming it's immutable, create new instance)
         habit.Frequency = new Frequency

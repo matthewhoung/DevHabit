@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <UserSecretsId>de9ab6d7-2564-4120-83da-7e8554116b83</UserSecretsId>
@@ -28,6 +28,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="Quartz.Extensions.Hosting" />
     <PackageReference Include="System.Linq.Dynamic.Core" />
   </ItemGroup>
 
