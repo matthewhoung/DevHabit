@@ -364,3 +364,4 @@ FodyWeavers.xsd
 
 .containers
 /src/DevHabit.Api/Database/Migrations
+/src/DevHabit.Api/Migrations/Application
