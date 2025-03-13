@@ -55,6 +55,22 @@ public sealed class AuthController(
                 extensions: extensions);
         }
 
+        IdentityResult addToResult = await userManager.AddToRoleAsync(identityUser, Roles.Member);
+        if (!addToResult.Succeeded)
+        {
+            var extensions = new Dictionary<string, object?>
+            {
+                {
+                    "errors",
+                    addToResult.Errors.ToDictionary(e => e.Code, e => e.Description)
+                }
+            };
+            return Problem(
+                detail: "Unable to register user, please try again",
+                statusCode: StatusCodes.Status400BadRequest,
+                extensions: extensions);
+        }
+
         User user = registerUserDto.ToEntity();
         user.IdentityId = identityUser.Id;
 
@@ -62,7 +78,7 @@ public sealed class AuthController(
 
         await applicationDbContext.SaveChangesAsync();
 
-        var tokenRequest = new TokenRequest(identityUser.Id, identityUser.Email);
+        var tokenRequest = new TokenRequest(identityUser.Id, identityUser.Email, [Roles.Member]);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
 
         var refreshToken = new RefreshToken
@@ -91,7 +107,9 @@ public sealed class AuthController(
             return Unauthorized();
         }
 
-        var tokenRequest = new TokenRequest(identityUser.Id, identityUser.Email!);
+        IList<string> roles = await userManager.GetRolesAsync(identityUser);
+
+        var tokenRequest = new TokenRequest(identityUser.Id, identityUser.Email!, roles);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
 
         var refreshToken = new RefreshToken
@@ -115,19 +133,16 @@ public sealed class AuthController(
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == refreshTokenDto.RefreshToken);
 
-        if (refreshToken is null)
+        if (refreshToken is null || refreshToken.ExpiresAtUtc < DateTime.UtcNow)
         {
             return Unauthorized();
         }
-
-        if (refreshToken.ExpiresAtUtc < DateTime.UtcNow)
-        {
-            return Unauthorized();
-        }
-
-        var tokenRequest = new TokenRequest(refreshToken.User.Id, refreshToken.User.Email!);
+        // Get user roles
+        IList<string> roles = await userManager.GetRolesAsync(refreshToken.User);
+        // Generate new access and refresh tokens
+        var tokenRequest = new TokenRequest(refreshToken.User.Id, refreshToken.User.Email!, roles);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
-
+        // Update the refresh token with basic rotation
         refreshToken.Token = accessTokens.RefreshToken;
         refreshToken.ExpiresAtUtc = DateTime.UtcNow.AddDays(_jwtAuthOptions.RefreshTokenExpirationDays);
 
