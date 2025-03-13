@@ -10,22 +10,14 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.HasKey(u => u.Id);
 
-        builder.Property(u => u.Id)
-            .HasMaxLength(500);
+        builder.Property(u => u.Id).HasMaxLength(500);
 
-        builder.Property(u => u.IdentityId)
-            .HasMaxLength(500);
+        builder.Property(u => u.Email).HasMaxLength(300);
+        builder.Property(u => u.IdentityId).HasMaxLength(500);
 
-        builder.Property(u => u.Email)
-            .HasMaxLength(300);
+        builder.Property(u => u.Name).HasMaxLength(100);
 
-        builder.Property(u => u.Name)
-            .HasMaxLength(100);
-
-        builder.HasIndex(u => u.IdentityId)
-            .IsUnique();
-
-        builder.HasIndex(u => u.Email)
-            .IsUnique();
+        builder.HasIndex(u => u.Email).IsUnique();
+        builder.HasIndex(u => u.IdentityId).IsUnique();
     }
 }

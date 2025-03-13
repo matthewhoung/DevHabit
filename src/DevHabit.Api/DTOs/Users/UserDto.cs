@@ -1,6 +1,6 @@
 ﻿namespace DevHabit.Api.DTOs.Users;
 
-public sealed class UserDto
+public sealed record UserDto
 {
     public required string Id { get; set; }
     public required string Email { get; set; }

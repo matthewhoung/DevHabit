@@ -1,6 +1,4 @@
-﻿using System.Linq.Dynamic.Core;
-
-namespace DevHabit.Api.Services.Sorting;
+﻿namespace DevHabit.Api.Services.Sorting;
 
 public sealed class SortMappingProvider(IEnumerable<ISortMappingDefinition> sortMappingDefinitions)
 {

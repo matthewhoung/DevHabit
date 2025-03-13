@@ -15,9 +15,7 @@ public sealed class TokenProvider(IOptions<JwtAuthOptions> options)
 
     public AccessTokensDto Create(TokenRequest tokenRequest)
     {
-        return new AccessTokensDto(
-            GenerateAccessToken(tokenRequest),
-            GenerateRefreshToken());
+        return new AccessTokensDto(GenerateAccessToken(tokenRequest), GenerateRefreshToken());
     }
 
     private string GenerateAccessToken(TokenRequest tokenRequest)
@@ -25,14 +23,12 @@ public sealed class TokenProvider(IOptions<JwtAuthOptions> options)
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtAuthOptions.Key));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        // setting claims
         List<Claim> claims =
         [
             new(JwtRegisteredClaimNames.Sub, tokenRequest.UserId),
             new(JwtRegisteredClaimNames.Email, tokenRequest.Email)
         ];
 
-        // construct token payload
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
@@ -42,13 +38,11 @@ public sealed class TokenProvider(IOptions<JwtAuthOptions> options)
             Audience = _jwtAuthOptions.Audience
         };
 
-        // dispatching token
         var handler = new JsonWebTokenHandler();
 
         string accessToken = handler.CreateToken(tokenDescriptor);
 
         return accessToken;
-
     }
 
     private static string GenerateRefreshToken()

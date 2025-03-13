@@ -2,9 +2,7 @@
 
 namespace DevHabit.Api.Services;
 
-public sealed class LinkService(
-    LinkGenerator linkGenerator,
-    IHttpContextAccessor httpContextAccessor)
+public sealed class LinkService(LinkGenerator linkGenerator, IHttpContextAccessor httpContextAccessor)
 {
     public LinkDto Create(
         string endpointName,

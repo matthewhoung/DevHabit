@@ -10,28 +10,23 @@ namespace DevHabit.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("habits/{habitId}/tags")]
-public sealed class HabitTagsController(ApplicationDbContext dbContext)
-    : ControllerBase
+public sealed class HabitTagsController(ApplicationDbContext dbContext) : ControllerBase
 {
     public static readonly string Name = nameof(HabitTagsController).Replace("Controller", string.Empty);
 
     [HttpPut]
-    public async Task<ActionResult> UpsertHabitTags(
-        string habitId, 
-        UpsertHabitTagsDto upsertHabitTagsDto)
+    public async Task<ActionResult> UpsertHabitTags(string habitId, UpsertHabitTagsDto upsertHabitTagsDto)
     {
-        Habit? habit = await dbContext
-            .Habits
+        Habit? habit = await dbContext.Habits
             .Include(h => h.HabitTags)
             .FirstOrDefaultAsync(h => h.Id == habitId);
+
         if (habit is null)
         {
             return NotFound();
         }
 
-        var currentTagIds = habit.HabitTags
-            .Select(ht => ht.TagId)
-            .ToHashSet();
+        var currentTagIds = habit.HabitTags.Select(ht => ht.TagId).ToHashSet();
         if (currentTagIds.SetEquals(upsertHabitTagsDto.TagIds))
         {
             return NoContent();
@@ -50,31 +45,23 @@ public sealed class HabitTagsController(ApplicationDbContext dbContext)
 
         habit.HabitTags.RemoveAll(ht => !upsertHabitTagsDto.TagIds.Contains(ht.TagId));
 
-        string[] tagIdsToAdd = upsertHabitTagsDto.TagIds
-            .Except(currentTagIds)
-            .ToArray();
-
-        habit.HabitTags
-            .AddRange(tagIdsToAdd
-                .Select(tagId => new HabitTag
-                {
-                    HabitId = habitId,
-                    TagId = tagId,
-                    CreatedAtUtc = DateTime.UtcNow
-                }));
+        string[] tagIdsToAdd = upsertHabitTagsDto.TagIds.Except(currentTagIds).ToArray();
+        habit.HabitTags.AddRange(tagIdsToAdd.Select(tagId => new HabitTag
+        {
+            HabitId = habitId,
+            TagId = tagId,
+            CreatedAtUtc = DateTime.UtcNow
+        }));
 
         await dbContext.SaveChangesAsync();
 
-        return Ok();
+        return NoContent();
     }
 
     [HttpDelete("{tagId}")]
-    public async Task<ActionResult> DeleteHabitTag(
-        string habitId, 
-        string tagId)
+    public async Task<ActionResult> DeleteHabitTag(string habitId, string tagId)
     {
-        HabitTag? habitTag = await dbContext
-            .HabitTags
+        HabitTag? habitTag = await dbContext.HabitTags
             .SingleOrDefaultAsync(ht => ht.HabitId == habitId && ht.TagId == tagId);
 
         if (habitTag is null)

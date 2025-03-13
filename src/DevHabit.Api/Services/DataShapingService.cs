@@ -9,10 +9,7 @@ public sealed class DataShapingService
 {
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertiesCache = new();
 
-    // single
-    public ExpandoObject ShapeData<T>(
-        T entity, 
-        string? fields)
+    public ExpandoObject ShapeData<T>(T entity, string? fields)
     {
         HashSet<string> fieldsSet = fields?
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -39,9 +36,9 @@ public sealed class DataShapingService
 
         return (ExpandoObject)shapedObject;
     }
-    // collection
+
     public List<ExpandoObject> ShapeCollectionData<T>(
-        IEnumerable<T> entities, 
+        IEnumerable<T> entities,
         string? fields,
         Func<T, List<LinkDto>>? linksFactory = null)
     {
@@ -57,10 +54,9 @@ public sealed class DataShapingService
         if (fieldsSet.Any())
         {
             propertyInfos = propertyInfos
-            .Where(p => fieldsSet.Contains(p.Name))
-            .ToArray();
+                .Where(p => fieldsSet.Contains(p.Name))
+                .ToArray();
         }
-
 
         List<ExpandoObject> shapedObjects = [];
         foreach (T entity in entities)
@@ -90,17 +86,15 @@ public sealed class DataShapingService
             return true;
         }
 
-        HashSet<string> fieldsSet = fields
+        var fieldsSet = fields
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(f => f.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         PropertyInfo[] propertyInfos = PropertiesCache.GetOrAdd(
             typeof(T),
             t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
 
-        return fieldsSet.All(f =>
-        propertyInfos.Any(
-            p => p.Name.Equals(f, StringComparison.OrdinalIgnoreCase)));
+        return fieldsSet.All(f => propertyInfos.Any(p => p.Name.Equals(f, StringComparison.OrdinalIgnoreCase)));
     }
 }

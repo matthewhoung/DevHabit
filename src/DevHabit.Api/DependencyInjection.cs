@@ -41,30 +41,28 @@ public static class DependencyInjection
         builder.Services.Configure<MvcOptions>(options =>
         {
             NewtonsoftJsonOutputFormatter formatter = options.OutputFormatters
-            .OfType<NewtonsoftJsonOutputFormatter>()
-            .First();
+                .OfType<NewtonsoftJsonOutputFormatter>()
+                .First();
 
+            formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.JsonV1);
+            formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.JsonV2);
             formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.HateoasJson);
             formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.HateoasJsonV1);
             formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.HateoasJsonV2);
-            formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.JsonV1);
-            formatter.SupportedMediaTypes.Add(CustomMediaTypeNames.Application.JsonV2);
         });
 
         builder.Services
             .AddApiVersioning(options =>
             {
-                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.DefaultApiVersion = new ApiVersion(1.0);
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ReportApiVersions = true;
-                // using CurrentImplementationApiVersionSelector for using the latest version
-                // but to be more explicit, we can use DefaultApiVersionSelector
                 options.ApiVersionSelector = new DefaultApiVersionSelector(options);
 
                 options.ApiVersionReader = ApiVersionReader.Combine(
                     new MediaTypeApiVersionReader(),
                     new MediaTypeApiVersionReaderBuilder()
-                        .Template("application/vnd.dev-habit.hateaos.{version}+json")
+                        .Template("application/vnd.dev-habit.hateoas.{version}+json")
                         .Build());
             })
             .AddMvc();
@@ -101,7 +99,7 @@ public static class DependencyInjection
                     npgsqlOptions => npgsqlOptions
                         .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Application))
                 .UseSnakeCaseNamingConvention());
-        // using a separate db setup for future detachability
+
         builder.Services.AddDbContext<ApplicationIdentityDbContext>(options =>
             options
                 .UseNpgsql(
@@ -116,16 +114,16 @@ public static class DependencyInjection
     public static WebApplicationBuilder AddObservability(this WebApplicationBuilder builder)
     {
         builder.Services.AddOpenTelemetry()
-        .ConfigureResource(resource => resource.AddService(builder.Environment.ApplicationName))
-        .WithTracing(tracing => tracing
-            .AddHttpClientInstrumentation()
-            .AddAspNetCoreInstrumentation()
-            .AddNpgsql())
-        .WithMetrics(metrics => metrics
-            .AddHttpClientInstrumentation()
-            .AddAspNetCoreInstrumentation()
-            .AddRuntimeInstrumentation())
-        .UseOtlpExporter();
+            .ConfigureResource(resource => resource.AddService(builder.Environment.ApplicationName))
+            .WithTracing(tracing => tracing
+                .AddHttpClientInstrumentation()
+                .AddAspNetCoreInstrumentation()
+                .AddNpgsql())
+            .WithMetrics(metrics => metrics
+                .AddHttpClientInstrumentation()
+                .AddAspNetCoreInstrumentation()
+                .AddRuntimeInstrumentation())
+            .UseOtlpExporter();
 
         builder.Logging.AddOpenTelemetry(options =>
         {
@@ -152,6 +150,9 @@ public static class DependencyInjection
         builder.Services.AddTransient<LinkService>();
         // Token provider
         builder.Services.AddTransient<TokenProvider>();
+        // User Context
+        builder.Services.AddMemoryCache();
+        builder.Services.AddScoped<UserContext>();
 
         return builder;
     }

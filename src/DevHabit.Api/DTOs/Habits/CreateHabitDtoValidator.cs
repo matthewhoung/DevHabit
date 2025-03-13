@@ -3,23 +3,17 @@ using FluentValidation;
 
 namespace DevHabit.Api.DTOs.Habits;
 
-public sealed class CreateHabitDtoValidator:
-    AbstractValidator<CreateHabitDto>
+public sealed class CreateHabitDtoValidator : AbstractValidator<CreateHabitDto>
 {
     private static readonly string[] AllowedUnits =
-        [
-            "minutes", "hours", "steps", "km", "cal",
-            "pages", "books", "tasks", "sessions"
-        ];
-
-    private static readonly string[] AllowedUnitsForBinaryHabits =
-        [
-            "sessions", "tasks"
-        ];
+    [
+        "minutes", "hours", "steps", "km", "cal",
+        "pages", "books", "tasks", "sessions"
+    ];
+    private static readonly string[] AllowedUnitsForBinaryHabits = ["sessions", "tasks"];
 
     public CreateHabitDtoValidator()
     {
-        // Basic Validation
         RuleFor(x => x.Name)
             .NotEmpty()
             .MinimumLength(3)
@@ -29,22 +23,22 @@ public sealed class CreateHabitDtoValidator:
         RuleFor(x => x.Description)
             .MaximumLength(500)
             .When(x => x.Description is not null)
-            .WithMessage("Habit description must be less than 500 characters");
+            .WithMessage("Description cannot exceed 500 characters");
 
         RuleFor(x => x.Type)
             .IsInEnum()
             .WithMessage("Invalid habit type");
 
-        // Frequency Validation
+        // Frequency validation
         RuleFor(x => x.Frequency.Type)
             .IsInEnum()
-            .WithMessage("Invalid frequency type");
+            .WithMessage("Invalid frequency period");
 
         RuleFor(x => x.Frequency.TimesPerPeriod)
             .GreaterThan(0)
-            .WithMessage("Frequency times per period must be greater than 0");
+            .WithMessage("Frequency must be greater than 0");
 
-        // Target Validation
+        // Target validation
         RuleFor(x => x.Target.Value)
             .GreaterThan(0)
             .WithMessage("Target value must be greater than 0");
@@ -54,12 +48,12 @@ public sealed class CreateHabitDtoValidator:
             .Must(unit => AllowedUnits.Contains(unit.ToLowerInvariant()))
             .WithMessage($"Unit must be one of: {string.Join(", ", AllowedUnits)}");
 
-        // End Date Validation
+        // EndDate validation
         RuleFor(x => x.EndDate)
             .Must(date => date is null || date.Value > DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("End date must be in the future");
 
-        // Milestone Validation
+        // Milestone validation
         When(x => x.Milestone is not null, () =>
         {
             RuleFor(x => x.Milestone!.Target)
@@ -70,7 +64,7 @@ public sealed class CreateHabitDtoValidator:
         // Complex rules
         RuleFor(x => x.Target.Unit)
             .Must((dto, unit) => IsTargetUnitCompatibleWithType(dto.Type, unit))
-            .WithMessage("Unit is not compatible with habit type");
+            .WithMessage("Target unit is not compatible with the habit type");
     }
 
     private static bool IsTargetUnitCompatibleWithType(HabitType type, string unit)
@@ -79,9 +73,11 @@ public sealed class CreateHabitDtoValidator:
 
         return type switch
         {
+            // Binary habits should only use count-based units
             HabitType.Binary => AllowedUnitsForBinaryHabits.Contains(normalizedUnit),
+            // Measurable habits can use any of the allowed units
             HabitType.Measurable => AllowedUnits.Contains(normalizedUnit),
-            _ => false
+            _ => false // None is not valid
         };
     }
 }

@@ -5,7 +5,6 @@ using DevHabit.Api.Entities;
 using DevHabit.Api.Services;
 using DevHabit.Api.Settings;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,8 +21,7 @@ public sealed class AuthController(
     ApplicationIdentityDbContext identityDbContext,
     ApplicationDbContext applicationDbContext,
     TokenProvider tokenProvider,
-    IOptions<JwtAuthOptions> options)
-    : ControllerBase
+    IOptions<JwtAuthOptions> options) : ControllerBase
 {
     private readonly JwtAuthOptions _jwtAuthOptions = options.Value;
 
@@ -33,32 +31,30 @@ public sealed class AuthController(
         using IDbContextTransaction transaction = await identityDbContext.Database.BeginTransactionAsync();
         applicationDbContext.Database.SetDbConnection(identityDbContext.Database.GetDbConnection());
         await applicationDbContext.Database.UseTransactionAsync(transaction.GetDbTransaction());
-        // Create identity user
+
         var identityUser = new IdentityUser
         {
             Email = registerUserDto.Email,
             UserName = registerUserDto.Email
         };
 
-        IdentityResult identityResult = await userManager.CreateAsync(identityUser, registerUserDto.Password);
+        IdentityResult createUserResult = await userManager.CreateAsync(identityUser, registerUserDto.Password);
 
-        if (!identityResult.Succeeded)
+        if (!createUserResult.Succeeded)
         {
             var extensions = new Dictionary<string, object?>
             {
                 {
                     "errors",
-                    identityResult.Errors.ToDictionary(
-                        e => e.Code, 
-                        e => e.Description)
+                    createUserResult.Errors.ToDictionary(e => e.Code, e => e.Description)
                 }
             };
             return Problem(
-                detail: "Unable to register user",
+                detail: "Unable to register user, please try again",
                 statusCode: StatusCodes.Status400BadRequest,
                 extensions: extensions);
         }
-        // Create app user
+
         User user = registerUserDto.ToEntity();
         user.IdentityId = identityUser.Id;
 
@@ -66,14 +62,9 @@ public sealed class AuthController(
 
         await applicationDbContext.SaveChangesAsync();
 
-        // Create access tokens
-        var tokenRequest = new TokenRequest(
-            identityUser.Id,
-            identityUser.Email);
-
+        var tokenRequest = new TokenRequest(identityUser.Id, identityUser.Email);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
 
-        // Create refresh token
         var refreshToken = new RefreshToken
         {
             Id = Guid.CreateVersion7(),
@@ -85,7 +76,6 @@ public sealed class AuthController(
 
         await identityDbContext.SaveChangesAsync();
 
-        // Commit transactions
         await transaction.CommitAsync();
 
         return Ok(accessTokens);
@@ -95,18 +85,15 @@ public sealed class AuthController(
     public async Task<ActionResult<AccessTokensDto>> Login(LoginUserDto loginUserDto)
     {
         IdentityUser? identityUser = await userManager.FindByEmailAsync(loginUserDto.Email);
+
         if (identityUser is null || !await userManager.CheckPasswordAsync(identityUser, loginUserDto.Password))
         {
             return Unauthorized();
         }
 
-        var tokenRequest = new TokenRequest(
-            identityUser.Id,
-            identityUser.Email!);
-
+        var tokenRequest = new TokenRequest(identityUser.Id, identityUser.Email!);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
 
-        // Create refresh token
         var refreshToken = new RefreshToken
         {
             Id = Guid.CreateVersion7(),
@@ -138,17 +125,14 @@ public sealed class AuthController(
             return Unauthorized();
         }
 
-        // Create access tokens
-        var tokenRequest = new TokenRequest(
-            refreshToken.UserId,
-            refreshToken.User.Email!);
+        var tokenRequest = new TokenRequest(refreshToken.User.Id, refreshToken.User.Email!);
         AccessTokensDto accessTokens = tokenProvider.Create(tokenRequest);
 
-        // Rotate refresh token
         refreshToken.Token = accessTokens.RefreshToken;
         refreshToken.ExpiresAtUtc = DateTime.UtcNow.AddDays(_jwtAuthOptions.RefreshTokenExpirationDays);
 
         await identityDbContext.SaveChangesAsync();
+
         return Ok(accessTokens);
     }
 }

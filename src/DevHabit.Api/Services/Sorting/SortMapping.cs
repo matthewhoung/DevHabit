@@ -1,6 +1,3 @@
 ﻿namespace DevHabit.Api.Services.Sorting;
 
-public sealed record class SortMapping(
-    string SortField,
-    string PropertyName,
-    bool Reverse = false);
+public sealed record SortMapping(string SortField, string PropertyName, bool Reverse = false);
