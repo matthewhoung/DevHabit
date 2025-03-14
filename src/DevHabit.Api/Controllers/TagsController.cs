@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DevHabit.Api.Controllers;
 
+[ResponseCache(Duration = 120)]
 [Authorize(Roles = Roles.Member)]
 [ApiController]
 [Route("tags")]
@@ -48,7 +49,7 @@ public sealed class TagsController(
 
         if (acceptHeader.IncludeLinks)
         {
-            tagsCollectionDto.Links = CreateLinksForTags();
+            tagsCollectionDto.Links = CreateLinksForTags(tags.Count);
             foreach (TagDto tagDto in tagsCollectionDto.Items)
             {
                 tagDto.Links = CreateLinksForTag(tagDto.Id);
@@ -180,13 +181,17 @@ public sealed class TagsController(
         return NoContent();
     }
 
-    private List<LinkDto> CreateLinksForTags()
+    private List<LinkDto> CreateLinksForTags(int tagsCount)
     {
         List<LinkDto> links =
         [
-            linkService.Create(nameof(GetTags), "self", HttpMethods.Get),
-            linkService.Create(nameof(CreateTag), "create", HttpMethods.Post)
+            linkService.Create(nameof(GetTags), "self", HttpMethods.Get)
         ];
+
+        if (tagsCount < 5)
+        {
+            linkService.Create(nameof(CreateTag), "create", HttpMethods.Post);
+        }
 
         return links;
     }
