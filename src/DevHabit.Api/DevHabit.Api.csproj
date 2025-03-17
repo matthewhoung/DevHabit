@@ -29,6 +29,8 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
     <PackageReference Include="Quartz.Extensions.Hosting" />
+    <PackageReference Include="Refit.HttpClientFactory" />
+    <PackageReference Include="Refit.Newtonsoft.Json" />
     <PackageReference Include="System.Linq.Dynamic.Core" />
   </ItemGroup>
 
