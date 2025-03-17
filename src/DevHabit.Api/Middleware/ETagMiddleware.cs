@@ -6,6 +6,12 @@ namespace DevHabit.Api.Middleware;
 
 public sealed class ETagMiddleware(RequestDelegate next)
 {
+    private static readonly string[] ConcurrencyCheckMethods =
+    [
+        HttpMethods.Put,
+        HttpMethods.Patch
+    ];
+
     public async Task InvokeAsync(HttpContext context, InMemoryETagStore eTagStore)
     {
         if (CanSkipETag(context))
@@ -15,7 +21,28 @@ public sealed class ETagMiddleware(RequestDelegate next)
         }
 
         string resourceUri = context.Request.Path.Value!;
-        string? ifNoneMatch = context.Request.Headers.IfNoneMatch.FirstOrDefault()?.Replace("\"", "");
+
+        string? ifNoneMatch = context.Request.Headers
+                .IfNoneMatch
+                .FirstOrDefault()?
+                .Replace("\"", "");
+        string? ifMatch = context.Request.Headers
+                .IfMatch
+                .FirstOrDefault()?
+                .Replace("\"", "");
+
+        if (ConcurrencyCheckMethods.Contains(context.Request.Method) && !string.IsNullOrEmpty(ifMatch))
+        {
+            string currentETag = eTagStore.GetETag(resourceUri);
+
+            if (!string.IsNullOrWhiteSpace(currentETag) && ifMatch != currentETag)
+            {
+                context.Response.StatusCode = StatusCodes.Status412PreconditionFailed;
+                context.Response.ContentLength = 0;
+
+                return;
+            }
+        }
 
         Stream originalStream = context.Response.Body;
         using var memeoryStream = new MemoryStream();
