@@ -1,12 +1,78 @@
-﻿using DevHabit.Api.Services;
+﻿using System.Security.Cryptography;
+using System.Text;
+using DevHabit.Api.Services;
 
 namespace DevHabit.Api.Middleware;
 
-public sealed class ETagMiddleware
+public sealed class ETagMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, InMemoryETagStore eTagStore)
     {
-        string resourceUri = context.Request.Path.Value;
+        if (CanSkipETag(context))
+        {
+            await next(context);
+            return;
+        }
+
+        string resourceUri = context.Request.Path.Value!;
         string? ifNoneMatch = context.Request.Headers.IfNoneMatch.FirstOrDefault()?.Replace("\"", "");
+
+        Stream originalStream = context.Response.Body;
+        using var memeoryStream = new MemoryStream();
+        context.Response.Body = memeoryStream;
+
+        await next(context);
+
+        if (IsETaggableResponse(context))
+        {
+            memeoryStream.Position = 0;
+            byte[] responseBody = await GetResponseBody(memeoryStream);
+            string etag = GenerateETag(responseBody);
+
+            eTagStore.SetETag(resourceUri, etag);
+            context.Response.Headers.ETag = $"\"{etag}\"";
+            context.Response.Body = originalStream;
+
+            if (context.Request.Method == HttpMethods.Get && ifNoneMatch == etag)
+            {
+                context.Response.StatusCode = StatusCodes.Status304NotModified;
+                context.Response.ContentLength = 0;
+                return;
+            }
+        }
+
+        memeoryStream.Position = 0;
+        await memeoryStream.CopyToAsync(originalStream);
+    }
+
+    private static bool IsETaggableResponse(HttpContext context)
+    {
+        return context.Response.StatusCode == StatusCodes.Status200OK &&
+            (context.Response.Headers.ContentType
+                .FirstOrDefault()?
+                .Contains("json", StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private static async Task<byte[]> GetResponseBody(MemoryStream memoryStream)
+    {
+        using var reader = new StreamReader(memoryStream, leaveOpen: true);
+        memoryStream.Position = 0;
+
+        string content = await reader.ReadToEndAsync();
+
+        return Encoding.UTF8.GetBytes(content);
+    }
+
+    private static string GenerateETag(byte[] content)
+    {
+        byte[] hash = SHA512.HashData(content);
+
+        return Convert.ToHexString(hash);
+    }
+
+    private static bool CanSkipETag(HttpContext context)
+    {
+        return context.Request.Method == HttpMethods.Post ||
+               context.Request.Method == HttpMethods.Delete;
     }
 }
