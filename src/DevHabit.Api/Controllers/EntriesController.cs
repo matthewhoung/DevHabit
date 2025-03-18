@@ -6,6 +6,7 @@ using DevHabit.Api.DTOs.Common;
 using DevHabit.Api.DTOs.Entries;
 using DevHabit.Api.Entities;
 using DevHabit.Api.Services;
+using DevHabit.Api.Services.Idempotency;
 using DevHabit.Api.Services.Sorting;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -211,6 +212,7 @@ public sealed class EntriesController(
     }
 
     [HttpPost]
+    [IdempotentRequest]
     public async Task<ActionResult<EntryDto>> CreateEntry(
         CreateEntryDto createEntryDto,
         [FromHeader] AcceptHeaderDto acceptHeader,
