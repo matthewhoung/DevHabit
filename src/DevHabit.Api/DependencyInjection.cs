@@ -20,7 +20,6 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Serialization;
 using Npgsql;
@@ -250,6 +249,13 @@ public static class DependencyInjection
                     s.WithIntervalInMinutes(settings.ScanIntervalMinutes)
                         .RepeatForever();
                 }));
+
+            q.AddJob<CleanupEntryImportJobsJob>(opts => opts.WithIdentity("cleanup-entry-imports"));
+
+            q.AddTrigger(opts => opts
+                .ForJob("cleanup-entry-imports")
+                .WithIdentity("cleanup-entry-imports-trigger")
+                .WithCronSchedule("0 0 3 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)));
         });
 
 

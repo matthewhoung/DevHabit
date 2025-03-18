@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Asp.Versioning.Mvc" />
+    <PackageReference Include="CsvHelper" />
     <PackageReference Include="EFCore.NamingConventions" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
