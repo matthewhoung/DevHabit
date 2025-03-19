@@ -6,7 +6,6 @@ using DevHabit.Api.DTOs.Common;
 using DevHabit.Api.DTOs.Entries;
 using DevHabit.Api.Entities;
 using DevHabit.Api.Services;
-using DevHabit.Api.Services.Idempotency;
 using DevHabit.Api.Services.Sorting;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -129,17 +128,15 @@ public sealed class EntriesController(
             var cursor = EntryCursorDto.Decode(query.Cursor);
             if (cursor is not null)
             {
-                entriesQuery = entriesQuery
-                    .Where(e =>
-                       e.Date < cursor.Date ||
-                       e.Date == cursor.Date &&
-                       string.Compare(e.Id, cursor.Id) <= 0);
+                entriesQuery = entriesQuery.Where(e => 
+                    e.Date < cursor.Date || 
+                    e.Date == cursor.Date && string.Compare(e.Id, cursor.Id) <= 0);
             }
         }
 
         List<EntryDto> entries = await entriesQuery
             .OrderByDescending(e => e.Date)
-            .ThenByDescending(e => e.Id)// this is possible because of ver7 uuid
+            .ThenByDescending(e => e.Id)
             .Take(query.Limit + 1)
             .Select(EntryQueries.ProjectToDto())
             .ToListAsync();
@@ -153,7 +150,7 @@ public sealed class EntriesController(
             entries.RemoveAt(entries.Count - 1);
         }
 
-        var paginationResult = new PaginationResult<ExpandoObject>
+        var paginationResult = new CollectionResponse<ExpandoObject>
         {
             Items = dataShapingService.ShapeCollectionData(
                 entries,
@@ -163,9 +160,7 @@ public sealed class EntriesController(
 
         if (query.IncludeLinks)
         {
-            paginationResult.Links = CreateLinksForEntriesCursor(
-                query,
-                nextCursor);
+            paginationResult.Links = CreateLinksForEntriesCursor(query, nextCursor);
         }
 
         return Ok(paginationResult);
@@ -212,7 +207,7 @@ public sealed class EntriesController(
     }
 
     [HttpPost]
-    [IdempotentRequest]
+    //[IdempotentRequest]
     public async Task<ActionResult<EntryDto>> CreateEntry(
         CreateEntryDto createEntryDto,
         [FromHeader] AcceptHeaderDto acceptHeader,
@@ -233,7 +228,7 @@ public sealed class EntriesController(
         {
             return Problem(
                 detail: $"Habit with ID '{createEntryDto.HabitId}' does not exist.",
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status404NotFound);
         }
 
         Entry entry = createEntryDto.ToEntity(userId, habit);
@@ -553,32 +548,16 @@ public sealed class EntriesController(
         return links;
     }
 
-    private List<LinkDto> CreateLinksForEntry(string id, string? fields, bool isArchived)
-    {
-        List<LinkDto> links =
-        [
-            linkService.Create(nameof(GetEntry), "self", HttpMethods.Get, new { id, fields }),
-            linkService.Create(nameof(UpdateEntry), "update", HttpMethods.Put, new { id }),
-            isArchived ?
-                linkService.Create(nameof(UnArchiveEntry), "un-archive", HttpMethods.Put, new { id }) :
-                linkService.Create(nameof(ArchiveEntry), "archive", HttpMethods.Put, new { id }),
-            linkService.Create(nameof(DeleteEntry), "delete", HttpMethods.Delete, new { id })
-        ];
-
-        return links;
-    }
-
     private List<LinkDto> CreateLinksForEntriesCursor(
         EntriesCursorQueryParameters parameters,
         string? nextCursor)
     {
         List<LinkDto> links =
         [
-            linkService.Create(nameof(GetEntriesCursor), "self", HttpMethods.Get,
-            new
+            linkService.Create(nameof(GetEntriesCursor), "self", HttpMethods.Get, new
             {
-                cursor = parameters.Cursor,
                 limit = parameters.Limit,
+                cursor = parameters.Cursor,
                 fields = parameters.Fields,
                 habitId = parameters.HabitId,
                 fromDate = parameters.FromDate,
@@ -593,19 +572,33 @@ public sealed class EntriesController(
 
         if (!string.IsNullOrWhiteSpace(nextCursor))
         {
-            links.Add(linkService.Create(nameof(GetEntriesCursor), "next-page", HttpMethods.Get,
-                new
-                {
-                    cursor = nextCursor,
-                    limit = parameters.Limit,
-                    fields = parameters.Fields,
-                    habitId = parameters.HabitId,
-                    fromDate = parameters.FromDate,
-                    toDate = parameters.ToDate,
-                    source = parameters.Source,
-                    isArchived = parameters.IsArchived
-                }));
+            links.Add(linkService.Create(nameof(GetEntriesCursor), "next-page", HttpMethods.Get, new
+            {
+                limit = parameters.Limit,
+                cursor = nextCursor,
+                fields = parameters.Fields,
+                habitId = parameters.HabitId,
+                fromDate = parameters.FromDate,
+                toDate = parameters.ToDate,
+                source = parameters.Source,
+                isArchived = parameters.IsArchived
+            }));
         }
+
+        return links;
+    }
+
+    private List<LinkDto> CreateLinksForEntry(string id, string? fields, bool isArchived)
+    {
+        List<LinkDto> links =
+        [
+            linkService.Create(nameof(GetEntry), "self", HttpMethods.Get, new { id, fields }),
+            linkService.Create(nameof(UpdateEntry), "update", HttpMethods.Put, new { id }),
+            isArchived ?
+                linkService.Create(nameof(UnArchiveEntry), "un-archive", HttpMethods.Put, new { id }) :
+                linkService.Create(nameof(ArchiveEntry), "archive", HttpMethods.Put, new { id }),
+            linkService.Create(nameof(DeleteEntry), "delete", HttpMethods.Delete, new { id })
+        ];
 
         return links;
     }

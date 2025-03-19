@@ -23,14 +23,15 @@ public sealed class GitHubAccessTokenService(ApplicationDbContext dbContext, Enc
         }
         else
         {
-            dbContext.GitHubAccessTokens.Add(new GitHubAccessToken
+            var accessToken = new GitHubAccessToken
             {
-                Id = $"gh_{Guid.CreateVersion7()}",
+                Id = GitHubAccessToken.NewId(),
                 UserId = userId,
                 Token = encryptedToken,
                 CreatedAtUtc = DateTime.UtcNow,
                 ExpiresAtUtc = DateTime.UtcNow.AddDays(accessTokenDto.ExpiresInDays)
-            });
+            };
+            dbContext.GitHubAccessTokens.Add(accessToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

@@ -18,7 +18,7 @@ public static class EntryMappings
     {
         return new Entry
         {
-            Id = $"e_{Guid.CreateVersion7()}",
+            Id = Entry.NewId(),
             HabitId = dto.HabitId,
             UserId = userId,
             Value = dto.Value,

@@ -13,4 +13,6 @@ public sealed class User
     /// This could be any identity provider like Azure AD, Cognito, Keycloak, Auth0, etc.
     /// </summary>
     public string IdentityId { get; set; }
+
+    public static string NewId() => $"u_{Guid.CreateVersion7()}";
 }

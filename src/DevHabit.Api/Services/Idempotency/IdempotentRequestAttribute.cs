@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Caching.Memory;
@@ -12,9 +12,7 @@ public sealed class IdempotentRequestAttribute : Attribute, IAsyncActionFilter
     private const string IdempotencyKeyHeader = "Idempotency-Key";
     private static readonly TimeSpan DefaultCacheDuration = TimeSpan.FromMinutes(60);
 
-    public async Task OnActionExecutionAsync(
-        ActionExecutingContext context, 
-        ActionExecutionDelegate next)
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         if (!context.HttpContext.Request.Headers.TryGetValue(
                 IdempotencyKeyHeader,

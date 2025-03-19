@@ -27,7 +27,6 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Polly;
 using Quartz;
 using Refit;
 
@@ -76,6 +75,8 @@ public static class DependencyInjection
 
         builder.Services.AddOpenApi();
 
+        builder.Services.AddResponseCaching();
+
         return builder;
     }
 
@@ -99,7 +100,7 @@ public static class DependencyInjection
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options
                 .UseNpgsql(
-                    builder.Configuration.GetConnectionString("Postgres"),
+                    builder.Configuration.GetConnectionString("Database"),
                     npgsqlOptions => npgsqlOptions
                         .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Application))
                 .UseSnakeCaseNamingConvention());
@@ -107,7 +108,7 @@ public static class DependencyInjection
         builder.Services.AddDbContext<ApplicationIdentityDbContext>(options =>
             options
                 .UseNpgsql(
-                    builder.Configuration.GetConnectionString("Postgres"),
+                    builder.Configuration.GetConnectionString("Database"),
                     npgsqlOptions => npgsqlOptions
                         .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Identity))
                 .UseSnakeCaseNamingConvention());
@@ -161,17 +162,14 @@ public static class DependencyInjection
         builder.Services.AddScoped<GitHubAccessTokenService>();
         builder.Services.AddTransient<GitHubService>();
 
-        builder.Services.AddHttpClient()
-            .ConfigureHttpClientDefaults(b =>
-                b.AddStandardHedgingHandler());
+        builder.Services.AddHttpClient().ConfigureHttpClientDefaults(b => b.AddStandardResilienceHandler());
 
         builder.Services.AddTransient<RefitGitHubService>();
-        // old-version with out refit
         builder.Services
             .AddHttpClient("github")
             .ConfigureHttpClient(client =>
             {
-                client.BaseAddress = new Uri("https://api.github.com");
+                client.BaseAddress = new Uri(builder.Configuration.GetSection("GitHub:BaseUrl").Get<string>()!);
 
                 client.DefaultRequestHeaders
                     .UserAgent.Add(new ProductInfoHeaderValue("DevHabit", "1.0"));
@@ -179,13 +177,42 @@ public static class DependencyInjection
                 client.DefaultRequestHeaders
                     .Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             });
-        // new-version with refit
+
+        //builder.Services.AddTransient<DelayHandler>();
         builder.Services
             .AddRefitClient<IGitHubApi>(new RefitSettings
             {
                 ContentSerializer = new NewtonsoftJsonContentSerializer()
             })
-            .ConfigureHttpClient(client => client.BaseAddress = new Uri("https://api.github.com"));
+            .ConfigureHttpClient(client =>
+            {
+                client.BaseAddress = new Uri(builder.Configuration.GetSection("GitHub:BaseUrl").Get<string>()!);
+            });
+            //.AddHttpMessageHandler<DelayHandler>();
+            //.InternalRemoveAllResilienceHandlers()
+            // Configuring a custom resilience pipeline for the GitHub API client
+            //.AddResilienceHandler("custom", pipeline =>
+            //{
+            //    pipeline.AddTimeout(TimeSpan.FromSeconds(5));
+
+            //    pipeline.AddRetry(new HttpRetryStrategyOptions
+            //    {
+            //        MaxRetryAttempts = 3,
+            //        BackoffType = DelayBackoffType.Exponential,
+            //        UseJitter = true,
+            //        Delay = TimeSpan.FromMilliseconds(500)
+            //    });
+
+            //    pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+            //    {
+            //        SamplingDuration = TimeSpan.FromSeconds(10),
+            //        FailureRatio = 0.9,
+            //        MinimumThroughput = 5,
+            //        BreakDuration = TimeSpan.FromSeconds(5)
+            //    });
+
+            //    pipeline.AddTimeout(TimeSpan.FromSeconds(1));
+            //});
 
         builder.Services.Configure<EncryptionOptions>(
             builder.Configuration.GetSection(EncryptionOptions.SectionName));
@@ -193,6 +220,9 @@ public static class DependencyInjection
 
         builder.Services.Configure<GitHubAutomationOptions>(
             builder.Configuration.GetSection(GitHubAutomationOptions.SectionName));
+
+        builder.Services.Configure<TagsOptions>(
+            builder.Configuration.GetSection(TagsOptions.SectionName));
 
         builder.Services.AddSingleton<InMemoryETagStore>();
 
@@ -235,6 +265,7 @@ public static class DependencyInjection
     {
         builder.Services.AddQuartz(q =>
         {
+            // GitHub automation scheduler
             q.AddJob<GitHubAutomationSchedulerJob>(opts => opts.WithIdentity("github-automation-scheduler"));
 
             q.AddTrigger(opts => opts
@@ -250,6 +281,7 @@ public static class DependencyInjection
                         .RepeatForever();
                 }));
 
+            // Entry import cleanup job - runs daily at 3 AM UTC
             q.AddJob<CleanupEntryImportJobsJob>(opts => opts.WithIdentity("cleanup-entry-imports"));
 
             q.AddTrigger(opts => opts
@@ -257,7 +289,6 @@ public static class DependencyInjection
                 .WithIdentity("cleanup-entry-imports-trigger")
                 .WithCronSchedule("0 0 3 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)));
         });
-
 
         builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
@@ -284,9 +315,6 @@ public static class DependencyInjection
 
     public static WebApplicationBuilder AddRateLimiting(this WebApplicationBuilder builder)
     {
-        // remember the build in rate limiter is in-memory
-        // when you scale out, you need to use a distributed rate limiter
-        // for example: api gateway, reverse proxy, or other cloud services
         builder.Services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -303,8 +331,9 @@ public static class DependencyInjection
                         .CreateProblemDetails(
                             context.HttpContext,
                             StatusCodes.Status429TooManyRequests,
-                            "Rate limit exceeded",
-                            detail: $"Retry after {retryAfter.TotalSeconds} seconds.");
+                            "Too Many Requests",
+                            detail: $"Too many requests. Please try again after {retryAfter.TotalSeconds} seconds."
+                        );
 
                     await context.HttpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken: token);
                 }
@@ -316,7 +345,6 @@ public static class DependencyInjection
 
                 if (!string.IsNullOrEmpty(identityId))
                 {
-                    // for authenticated users
                     return RateLimitPartition.GetTokenBucketLimiter(
                         identityId,
                         _ =>
@@ -329,7 +357,7 @@ public static class DependencyInjection
                                 TokensPerPeriod = 25
                             });
                 }
-                // for unauthenticated users
+
                 return RateLimitPartition.GetFixedWindowLimiter(
                     "anonymous",
                     _ =>

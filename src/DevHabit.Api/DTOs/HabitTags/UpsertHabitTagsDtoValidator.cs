@@ -8,7 +8,11 @@ public sealed class UpsertHabitTagsDtoValidator : AbstractValidator<UpsertHabitT
     {
         RuleFor(x => x.TagIds)
             .NotEmpty()
+            .WithMessage("At least one tag ID is required");
+
+        RuleFor(x => x.TagIds)
             .Must(x => x.Count == x.Distinct().Count())
+            .When(x => x.TagIds.Any())
             .WithMessage("Duplicate tag IDs are not allowed");
 
         RuleForEach(x => x.TagIds)

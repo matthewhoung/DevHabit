@@ -41,7 +41,7 @@ public sealed class EntryImportsController(
             return Unauthorized();
         }
 
-        await validator.ValidateAsync(createImportJobDto);
+        await validator.ValidateAndThrowAsync(createImportJobDto);
 
         // Create import job
         using var memoryStream = new MemoryStream();

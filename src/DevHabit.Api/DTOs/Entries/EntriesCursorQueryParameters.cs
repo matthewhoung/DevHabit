@@ -1,4 +1,4 @@
-﻿using DevHabit.Api.DTOs.Common;
+using DevHabit.Api.DTOs.Common;
 using DevHabit.Api.Entities;
 
 namespace DevHabit.Api.DTOs.Entries;

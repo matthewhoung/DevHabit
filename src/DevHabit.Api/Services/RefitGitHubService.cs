@@ -1,13 +1,9 @@
-using System.Net.Http.Headers;
 using DevHabit.Api.DTOs.GitHub;
-using Newtonsoft.Json;
 using Refit;
 
 namespace DevHabit.Api.Services;
 
-public sealed class RefitGitHubService(
-    IGitHubApi gitHubApi, 
-    ILogger<GitHubService> logger)
+public sealed class RefitGitHubService(IGitHubApi gitHubApi, ILogger<GitHubService> logger)
 {
     public async Task<GitHubUserProfileDto?> GetUserProfileAsync(
         string accessToken,
@@ -20,7 +16,6 @@ public sealed class RefitGitHubService(
         if (!response.IsSuccessStatusCode)
         {
             logger.LogWarning("Failed to get GitHub user profile. Status code: {StatusCode}", response.StatusCode);
-
             return null;
         }
 
@@ -42,7 +37,7 @@ public sealed class RefitGitHubService(
             accessToken,
             page,
             perPage,
-            cancellationToken);
+            cancellationToken: cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -52,5 +47,4 @@ public sealed class RefitGitHubService(
 
         return response.Content;
     }
-
 }

@@ -12,51 +12,44 @@ public sealed class ETagMiddleware(RequestDelegate next)
         HttpMethods.Patch
     ];
 
-    public async Task InvokeAsync(HttpContext context, InMemoryETagStore eTagStore)
+    public async Task InvokeAsync(HttpContext context, InMemoryETagStore etagStore)
     {
         if (CanSkipETag(context))
         {
             await next(context);
+
             return;
         }
 
         string resourceUri = context.Request.Path.Value!;
-
-        string? ifNoneMatch = context.Request.Headers
-                .IfNoneMatch
-                .FirstOrDefault()?
-                .Replace("\"", "");
-        string? ifMatch = context.Request.Headers
-                .IfMatch
-                .FirstOrDefault()?
-                .Replace("\"", "");
+        string? ifNoneMatch = context.Request.Headers.IfNoneMatch.FirstOrDefault()?.Replace("\"", "");
+        string? ifMatch = context.Request.Headers.IfMatch.FirstOrDefault()?.Replace("\"", "");
 
         if (ConcurrencyCheckMethods.Contains(context.Request.Method) && !string.IsNullOrEmpty(ifMatch))
         {
-            string currentETag = eTagStore.GetETag(resourceUri);
+            string currentETag = etagStore.GetETag(resourceUri);
 
             if (!string.IsNullOrWhiteSpace(currentETag) && ifMatch != currentETag)
             {
                 context.Response.StatusCode = StatusCodes.Status412PreconditionFailed;
                 context.Response.ContentLength = 0;
-
                 return;
             }
         }
 
         Stream originalStream = context.Response.Body;
-        using var memeoryStream = new MemoryStream();
-        context.Response.Body = memeoryStream;
+        using var memoryStream = new MemoryStream();
+        context.Response.Body = memoryStream;
 
         await next(context);
 
         if (IsETaggableResponse(context))
         {
-            memeoryStream.Position = 0;
-            byte[] responseBody = await GetResponseBody(memeoryStream);
+            memoryStream.Position = 0;
+            byte[] responseBody = await GetResponseBody(memoryStream);
             string etag = GenerateETag(responseBody);
 
-            eTagStore.SetETag(resourceUri, etag);
+            etagStore.SetETag(resourceUri, etag);
             context.Response.Headers.ETag = $"\"{etag}\"";
             context.Response.Body = originalStream;
 
@@ -68,16 +61,16 @@ public sealed class ETagMiddleware(RequestDelegate next)
             }
         }
 
-        memeoryStream.Position = 0;
-        await memeoryStream.CopyToAsync(originalStream);
+        memoryStream.Position = 0;
+        await memoryStream.CopyToAsync(originalStream);
     }
 
     private static bool IsETaggableResponse(HttpContext context)
     {
         return context.Response.StatusCode == StatusCodes.Status200OK &&
-            (context.Response.Headers.ContentType
-                .FirstOrDefault()?
-                .Contains("json", StringComparison.OrdinalIgnoreCase) ?? false);
+               (context.Response.Headers.ContentType
+                   .FirstOrDefault()?
+                   .Contains("json", StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private static async Task<byte[]> GetResponseBody(MemoryStream memoryStream)

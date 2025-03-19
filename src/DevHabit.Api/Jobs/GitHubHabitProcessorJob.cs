@@ -18,7 +18,7 @@ public sealed class GitHubHabitProcessorJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        string habitId = context.JobDetail.JobDataMap.GetString("habitId")
+        string habitId = context.MergedJobDataMap.GetString("habitId")
             ?? throw new InvalidOperationException("HabitId not found in job data");
 
         try
@@ -110,7 +110,7 @@ public sealed class GitHubHabitProcessorJob(
                 // Create a new entry
                 var entry = new Entry
                 {
-                    Id = $"e_{Guid.CreateVersion7()}",
+                    Id = Entry.NewId(),
                     HabitId = habit.Id,
                     UserId = habit.UserId,
                     Value = 1, // Each push counts as 1
