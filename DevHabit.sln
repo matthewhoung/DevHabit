@@ -20,6 +20,8 @@ Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevHabit.UnitTests", "test\DevHabit.UnitTests\DevHabit.UnitTests.csproj", "{2B020646-E5C5-4A61-9FF3-1857D9E838C6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevHabit.IntegrationTests", "test\DevHabit.IntegrationTests\DevHabit.IntegrationTests.csproj", "{231EFBBC-8027-4F70-A730-F27C4970D2DE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{2B020646-E5C5-4A61-9FF3-1857D9E838C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B020646-E5C5-4A61-9FF3-1857D9E838C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B020646-E5C5-4A61-9FF3-1857D9E838C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{231EFBBC-8027-4F70-A730-F27C4970D2DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{231EFBBC-8027-4F70-A730-F27C4970D2DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{231EFBBC-8027-4F70-A730-F27C4970D2DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{231EFBBC-8027-4F70-A730-F27C4970D2DE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -45,5 +51,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{52F03566-F426-4458-A14C-401441422DBF} = {CEC82D38-1684-41A5-BA28-D8C3E2582760}
 		{2B020646-E5C5-4A61-9FF3-1857D9E838C6} = {F6375E5D-2F6B-4608-A733-1FF4735D79FC}
+		{231EFBBC-8027-4F70-A730-F27C4970D2DE} = {F6375E5D-2F6B-4608-A733-1FF4735D79FC}
 	EndGlobalSection
 EndGlobal

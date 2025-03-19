@@ -27,9 +27,9 @@ if (app.Environment.IsDevelopment())
     await app.SeedInitialDataAsync();
 }
 
-app.UseHttpsRedirection();
-
 app.UseExceptionHandler();
+
+app.UseHttpsRedirection();
 
 app.UseCors(CorsOptions.PolicyName);
 
@@ -38,8 +38,11 @@ app.UseAuthorization();
 
 app.UseRateLimiter();
 
-app.UseMiddleware<ETagMiddleware>();
+app.UseUserContextEnrichment();
 
 app.MapControllers();
 
 await app.RunAsync();
+
+// for testing
+public partial class Program;
