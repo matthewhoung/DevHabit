@@ -11,7 +11,7 @@ public sealed class CreateEntryDtoValidator : AbstractValidator<CreateEntryDto>
             .WithMessage("Habit does not exist.");
 
         RuleFor(x => x.Value)
-            .GreaterThanOrEqualTo(0)
+            .GreaterThan(0)
             .WithMessage("Value must be greater than or equal to 0.");
 
         RuleFor(x => x.Notes)
