@@ -33,7 +33,7 @@
     <PackageVersion Include="Refit.Newtonsoft.Json" Version="8.0.0" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.0.18" />
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.7.0.110445" />
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="8.0.0" />
     <PackageVersion Include="System.Linq.Dynamic.Core" Version="1.6.0.2" />
     <!-- Testing -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />

@@ -33,6 +33,7 @@
     <PackageReference Include="Quartz.Extensions.Hosting" />
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="Refit.Newtonsoft.Json" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="System.Linq.Dynamic.Core" />
   </ItemGroup>
 
