@@ -1,11 +1,11 @@
-﻿using System.Security.Cryptography;
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Security.Cryptography;
 using Testcontainers.PostgreSql;
 using WireMock.Server;
 
-namespace DevHabit.IntegrationTests.Infrastructure;
+namespace DevHabit.FunctionalTests.Infrastructure;
 
 public sealed class DevHabitWebAppFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -25,6 +25,7 @@ public sealed class DevHabitWebAppFactory : WebApplicationFactory<Program>, IAsy
         builder.UseSetting("ConnectionStrings:Database", _postgresContainer.GetConnectionString());
         builder.UseSetting("GitHub:BaseUrl", _wireMockServer.Urls[0]);
         builder.UseSetting("Encryption:Key", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        Quartz.Logging.LogContext.SetCurrentLogProvider(NullLoggerFactory.Instance);
     }
 
     public async Task InitializeAsync()

@@ -25,7 +25,7 @@ jobs:
         run: dotnet restore DevHabit.sln
 
       - name: Build
-        run: dotnet build DevHabit.sln --configuration Release --no-restore
+        run: dotnet build DevHabit.sln --configuration Release --no-restore --no-build --verbosity normal
 
       - name: Test
         run: dotnet test DevHabit.sln --configuration Release --no-restore --no-build

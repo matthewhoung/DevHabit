@@ -39,6 +39,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="DevHabit.UnitTests" />
     <InternalsVisibleTo Include="DevHabit.IntegrationTests" />
+    <InternalsVisibleTo Include="DevHabit.FunctionalTests" />
   </ItemGroup>
 
 </Project>

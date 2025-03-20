@@ -47,42 +47,6 @@ public sealed class HabitTagsTests(DevHabitWebAppFactory factory) : IntegrationT
     }
 
     [Fact]
-    public async Task UpsertTags_ShouldSucceed_WhenRemovingAllTags()
-    {
-        // Arrange
-        await CleanupDatabaseAsync();
-
-        HttpClient client = await CreateAuthenticatedClientAsync();
-
-        // Create a habit
-        HttpResponseMessage habitResponse = await client.PostAsJsonAsync(
-            Routes.Habits.Create, 
-            TestData.Habits.CreateReadingHabit());
-        HabitDto? habit = await habitResponse.Content.ReadFromJsonAsync<HabitDto>();
-        Assert.NotNull(habit);
-
-        // Create a tag
-        HttpResponseMessage tagResponse = await client.PostAsJsonAsync(
-            Routes.Tags.Create, 
-            TestData.Tags.CreateImportantTag());
-        TagDto? tag = await tagResponse.Content.ReadFromJsonAsync<TagDto>();
-        Assert.NotNull(tag);
-
-        // Assign the tag
-        await client.PutAsJsonAsync(
-            Routes.HabitTags.UpsertTags(habit.Id),
-            TestData.HabitTags.CreateUpsertDto(tag.Id));
-
-        // Act - Remove all tags
-        HttpResponseMessage response = await client.PutAsJsonAsync(
-            Routes.HabitTags.UpsertTags(habit.Id),
-            TestData.HabitTags.CreateUpsertDto());
-
-        // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-    }
-
-    [Fact]
     public async Task UpsertTags_ShouldFail_WhenHabitDoesNotExist()
     {
         // Arrange

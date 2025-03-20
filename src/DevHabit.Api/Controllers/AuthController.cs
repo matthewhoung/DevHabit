@@ -144,7 +144,6 @@ public sealed class AuthController(
         await validator.ValidateAndThrowAsync(refreshTokenDto);
 
         RefreshToken? refreshToken = await identityDbContext.RefreshTokens
-            .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == refreshTokenDto.RefreshToken);
 
         if (refreshToken is null)
