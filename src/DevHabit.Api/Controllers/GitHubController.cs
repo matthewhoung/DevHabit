@@ -17,13 +17,23 @@ namespace DevHabit.Api.Controllers;
     CustomMediaTypeNames.Application.JsonV1,
     CustomMediaTypeNames.Application.HateoasJson,
     CustomMediaTypeNames.Application.HateoasJsonV1)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public sealed class GitHubController(
     GitHubAccessTokenService gitHubAccessTokenService,
     RefitGitHubService gitHubService,
     UserContext userContext,
     LinkService linkService) : ControllerBase
 {
+    /// <summary>
+    /// Stores a GitHub personal access token for the current user
+    /// </summary>
+    /// <param name="storeGitHubAccessTokenDto">The GitHub access token details</param>
+    /// <param name="validator">Validator for the token storage request</param>
+    /// <returns>No content on success</returns>
     [HttpPut("personal-access-token")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> StoreAccessToken(
         StoreGitHubAccessTokenDto storeGitHubAccessTokenDto,
         IValidator<StoreGitHubAccessTokenDto> validator)
@@ -41,7 +51,12 @@ public sealed class GitHubController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Revokes the stored GitHub personal access token for the current user
+    /// </summary>
+    /// <returns>No content on success</returns>
     [HttpDelete("personal-access-token")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RevokeAccessToken()
     {
         string? userId = await userContext.GetUserIdAsync();
@@ -55,7 +70,14 @@ public sealed class GitHubController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Retrieves the GitHub profile of the current user
+    /// </summary>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <returns>The user's GitHub profile</returns>
     [HttpGet("profile")]
+    [ProducesResponseType<GitHubUserProfileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GitHubUserProfileDto>> GetUserProfile([FromHeader] AcceptHeaderDto acceptHeader)
     {
         string? userId = await userContext.GetUserIdAsync();
@@ -89,7 +111,13 @@ public sealed class GitHubController(
         return Ok(userProfile);
     }
 
+    /// <summary>
+    /// Retrieves the GitHub events for the current user
+    /// </summary>
+    /// <returns>List of GitHub events</returns>
     [HttpGet("events")]
+    [ProducesResponseType<IReadOnlyList<GitHubEventDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<GitHubEventDto>>> GetUserEvents()
     {
         string? userId = await userContext.GetUserIdAsync();

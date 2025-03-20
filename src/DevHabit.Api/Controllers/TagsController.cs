@@ -24,13 +24,21 @@ namespace DevHabit.Api.Controllers;
     CustomMediaTypeNames.Application.JsonV1,
     CustomMediaTypeNames.Application.HateoasJson,
     CustomMediaTypeNames.Application.HateoasJsonV1)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public sealed class TagsController(
     ApplicationDbContext dbContext,
     LinkService linkService,
     UserContext userContext,
     IOptions<TagsOptions> options) : ControllerBase
 {
+    /// <summary>
+    /// Retrieves all tags for the current user
+    /// </summary>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <returns>Collection of tags</returns>
     [HttpGet]
+    [ProducesResponseType<TagsCollectionDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<TagsCollectionDto>> GetTags(
         [FromHeader] AcceptHeaderDto acceptHeader)
     {
@@ -63,7 +71,15 @@ public sealed class TagsController(
         return Ok(tagsCollectionDto);
     }
 
+    /// <summary>
+    /// Retrieves a specific tag by ID
+    /// </summary>
+    /// <param name="id">The tag ID</param>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <returns>The requested tag</returns>
     [HttpGet("{id}")]
+    [ProducesResponseType<TagDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TagDto>> GetTag(string id, [FromHeader] AcceptHeaderDto acceptHeader)
     {
         string? userId = await userContext.GetUserIdAsync();
@@ -91,7 +107,18 @@ public sealed class TagsController(
         return Ok(tag);
     }
 
+    /// <summary>
+    /// Creates a new tag
+    /// </summary>
+    /// <param name="createTagDto">The tag creation details</param>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <param name="validator">Validator for the creation request</param>
+    /// <param name="problemDetailsFactory">Factory for creating problem details</param>
+    /// <returns>The created tag</returns>
     [HttpPost]
+    [ProducesResponseType<TagDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TagDto>> CreateTag(
         CreateTagDto createTagDto,
         [FromHeader] AcceptHeaderDto acceptHeader,
@@ -146,7 +173,16 @@ public sealed class TagsController(
         return CreatedAtAction(nameof(GetTag), new { id = tagDto.Id }, tagDto);
     }
 
+    /// <summary>
+    /// Updates an existing tag
+    /// </summary>
+    /// <param name="id">The tag ID</param>
+    /// <param name="updateTagDto">The tag update details</param>
+    /// <param name="eTagStore">Store for ETag handling</param>
+    /// <returns>No content on success</returns>
     [HttpPut("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateTag(string id, UpdateTagDto updateTagDto, InMemoryETagStore eTagStore)
     {
         string? userId = await userContext.GetUserIdAsync();
@@ -170,7 +206,14 @@ public sealed class TagsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Deletes a tag
+    /// </summary>
+    /// <param name="id">The tag ID</param>
+    /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> DeleteTag(string id)
     {
         string? userId = await userContext.GetUserIdAsync();

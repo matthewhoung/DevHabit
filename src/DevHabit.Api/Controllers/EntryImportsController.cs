@@ -23,13 +23,24 @@ namespace DevHabit.Api.Controllers;
     CustomMediaTypeNames.Application.JsonV1,
     CustomMediaTypeNames.Application.HateoasJson,
     CustomMediaTypeNames.Application.HateoasJsonV1)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public sealed class EntryImportsController(
     ApplicationDbContext dbContext,
     ISchedulerFactory schedulerFactory,
     LinkService linkService,
     UserContext userContext) : ControllerBase
 {
+    /// <summary>
+    /// Creates a new import job for entries
+    /// </summary>
+    /// <param name="createImportJobDto">The import job details including the file to import</param>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <param name="validator">Validator for the import job request</param>
+    /// <returns>The created import job details</returns>
     [HttpPost]
+    [ProducesResponseType<EntryImportJobDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<EntryImportJobDto>> CreateImportJob(
         [FromForm] CreateEntryImportJobDto createImportJobDto,
         [FromHeader] AcceptHeaderDto acceptHeader,
@@ -85,7 +96,15 @@ public sealed class EntryImportsController(
         return CreatedAtAction(nameof(GetImportJob), new { id = importJobDto.Id }, importJobDto);
     }
 
+    /// <summary>
+    /// Retrieves a paginated list of entry import jobs
+    /// </summary>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <param name="page">The page number</param>
+    /// <param name="pageSize">The number of items per page</param>
+    /// <returns>A paginated list of entry import jobs</returns>
     [HttpGet]
+    [ProducesResponseType<PaginationResult<EntryImportJobDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginationResult<EntryImportJobDto>>> GetImportJobs(
         [FromHeader] AcceptHeaderDto acceptHeader,
         [FromQuery] int page = 1,
@@ -133,7 +152,15 @@ public sealed class EntryImportsController(
         return Ok(result);
     }
 
+    /// <summary>
+    /// Retrieves a specific entry import job by ID
+    /// </summary>
+    /// <param name="id">The ID of the entry import job</param>
+    /// <param name="acceptHeader">Controls HATEOAS link generation</param>
+    /// <returns>The requested entry import job</returns>
     [HttpGet("{id}")]
+    [ProducesResponseType<EntryImportJobDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<EntryImportJobDto>> GetImportJob(
         string id,
         [FromHeader] AcceptHeaderDto acceptHeader)

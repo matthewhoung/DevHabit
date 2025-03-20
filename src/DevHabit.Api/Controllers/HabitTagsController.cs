@@ -1,6 +1,8 @@
-﻿using DevHabit.Api.Database;
+﻿using System.Net.Mime;
+using DevHabit.Api.Database;
 using DevHabit.Api.DTOs.HabitTags;
 using DevHabit.Api.Entities;
+using DevHabit.Api.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,11 +13,28 @@ namespace DevHabit.Api.Controllers;
 [Authorize(Roles = Roles.Member)]
 [ApiController]
 [Route("habits/{habitId}/tags")]
+[Produces(
+    MediaTypeNames.Application.Json,
+    CustomMediaTypeNames.Application.JsonV1,
+    CustomMediaTypeNames.Application.HateoasJson,
+    CustomMediaTypeNames.Application.HateoasJsonV1)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public sealed class HabitTagsController(ApplicationDbContext dbContext) : ControllerBase
 {
     public static readonly string Name = nameof(HabitTagsController).Replace("Controller", string.Empty);
 
+    /// <summary>
+    /// Updates the tags associated with a habit
+    /// </summary>
+    /// <param name="habitId">The ID of the habit</param>
+    /// <param name="upsertHabitTagsDto">The list of tag IDs to associate with the habit</param>
+    /// <param name="validator">Validator for the upsert request</param>
+    /// <returns>No content on success</returns>
     [HttpPut]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpsertHabitTags(
         string habitId,
         UpsertHabitTagsDto upsertHabitTagsDto,
@@ -66,7 +85,15 @@ public sealed class HabitTagsController(ApplicationDbContext dbContext) : Contro
         return NoContent();
     }
 
+    /// <summary>
+    /// Deletes a tag association from a habit
+    /// </summary>
+    /// <param name="habitId">The ID of the habit</param>
+    /// <param name="tagId">The ID of the tag to remove</param>
+    /// <returns>No content on success</returns>
     [HttpDelete("{tagId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> DeleteHabitTag(string habitId, string tagId)
     {
         HabitTag? habitTag = await dbContext.HabitTags
